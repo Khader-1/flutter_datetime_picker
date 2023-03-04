@@ -564,7 +564,7 @@ class DateTimePickerModel extends CommonPickerModel {
     }
 
     _currentLeftIndex = 0;
-    _currentMiddleIndex = this.currentTime.hour;
+    _currentMiddleIndex = min(this.currentTime.hour, this.minTimeInDay!.hour);
     _currentRightIndex = this.currentTime.minute;
     if (this.minTime != null && isAtSameDay(this.minTime!, this.currentTime)) {
       _currentMiddleIndex = this.currentTime.hour - this.minTime!.hour;
@@ -573,8 +573,18 @@ class DateTimePickerModel extends CommonPickerModel {
       }
     }
 
-    maxTimeInDay ??= DateTime(0, 0, 0, 23, 59, 59);
-    minTimeInDay ??= DateTime(0, 0, 0, 0, 0, 0);
+    maxTimeInDay ??= DateTime(2030, 1, 1, 23, 59, 59);
+    minTimeInDay ??= DateTime(1970, 1, 1, 0, 0, 0);
+  }
+
+  @override
+  int currentMiddleIndex() {
+    return max(_currentMiddleIndex, minTime?.hour ?? 0);
+  }
+
+  @override
+  int currentLeftIndex() {
+    return max(_currentLeftIndex, minTime?.minute ?? 0);
   }
 
   bool isAtSameDay(DateTime? day1, DateTime? day2) {
@@ -607,8 +617,7 @@ class DateTimePickerModel extends CommonPickerModel {
         _currentRightIndex = maxIndex;
       }
     } else if (isAtSameDay(maxTime, time) &&
-        _currentMiddleIndex == maxTime!.hour &&
-        _currentMiddleIndex == maxTimeInDay!.hour) {
+        _currentMiddleIndex == maxTime!.hour) {
       var maxIndex = maxTime!.minute;
       if (_currentRightIndex > maxIndex) {
         _currentRightIndex = maxIndex;
@@ -636,20 +645,28 @@ class DateTimePickerModel extends CommonPickerModel {
     if (index >= 0 && index < 24) {
       DateTime time = currentTime.add(Duration(days: _currentLeftIndex));
       if (isAtSameDay(minTime, time)) {
-        if (index >= 0 &&
-            index < 24 - minTime!.hour &&
-            index < 24 - (minTimeInDay!.hour)) {
-          return digits(minTime!.hour + index, 2);
-        } else {
-          return null;
-        }
+        // if (index >= 0 && index < 24 - minTime!.hour) {
+        //   if (minTime!.hour + index < minTimeInDay!.hour) return null;
+        //   if (minTime!.hour + index > maxTimeInDay!.hour) return null;
+        //   return digits(minTime!.hour + index, 2);
+        // } else {
+        if (index < (minTimeInDay?.hour ?? 0)) return null;
+        if (index > maxTimeInDay!.hour) return null;
+        return digits(index, 2);
+        // }
       } else if (isAtSameDay(maxTime, time)) {
+        if (index < minTimeInDay!.hour) return null;
+        if (index > maxTimeInDay!.hour) return null;
         if (index >= 0 && index <= maxTime!.hour) {
           return digits(index, 2);
         } else {
           return null;
         }
       }
+
+      if (index < minTimeInDay!.hour) return null;
+      if (index > maxTimeInDay!.hour) return null;
+
       return digits(index, 2);
     }
 
@@ -658,12 +675,16 @@ class DateTimePickerModel extends CommonPickerModel {
 
   @override
   String? rightStringAtIndex(int index) {
+    if (_currentMiddleIndex == maxTimeInDay!.hour &&
+        index > maxTimeInDay!.minute) return null;
+
+    if (_currentMiddleIndex == minTimeInDay!.hour &&
+        index < minTimeInDay!.minute) return null;
+
     if (index >= 0 && index < 60) {
       DateTime time = currentTime.add(Duration(days: _currentLeftIndex));
       if (isAtSameDay(minTime, time) && _currentMiddleIndex == 0) {
-        if (index >= 0 &&
-            index < 60 - minTime!.minute &&
-            index < 60 - minTimeInDay!.minute) {
+        if (index >= 0 && index < 60 - minTime!.minute) {
           return digits(minTime!.minute + index, 2);
         } else {
           return null;
